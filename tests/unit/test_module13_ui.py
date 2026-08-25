@@ -97,7 +97,11 @@ def _render_evaluation_ui_for_app_test() -> None:
 
 def test_evaluation_render_path_uses_public_limitation_headings() -> None:
     app_test = AppTest.from_function(_render_evaluation_ui_for_app_test)
-    app_test.run()
+    # The full suite loads the embedding and reranking models before this UI
+    # test; Streamlit's default three-second AppTest timeout is too tight on
+    # Windows under that workload. Keep the same assertions with a bounded,
+    # platform-neutral timeout.
+    app_test.run(timeout=10)
 
     assert not app_test.exception
     expander_labels = {item.label for item in app_test.expander}

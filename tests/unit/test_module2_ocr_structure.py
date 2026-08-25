@@ -239,13 +239,21 @@ def test_ocr_failure_is_reported_as_unresolved(tmp_path: Path) -> None:
     assert payload["unresolved_ocr_pages"] == 1
 
 
-def test_tesseract_resolution_uses_explicit_path() -> None:
-    """The configured Windows executable is resolved and runnable."""
+def test_tesseract_resolution_uses_explicit_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit executable path is resolved portably without host Tesseract."""
 
-    command = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    service = TesseractOCRService(Settings(tesseract_cmd=command))
+    command = tmp_path / "tesseract"
+    command.write_text("test executable stub", encoding="utf-8")
+    monkeypatch.setattr(
+        "app.services.ocr.tesseract_ocr.pytesseract.get_tesseract_version",
+        lambda: "5.3.0",
+    )
+    service = TesseractOCRService(Settings(tesseract_cmd=str(command)))
 
-    assert service.resolved_command == command
+    assert service.resolved_command == str(command)
     assert service.is_available() is True
 
 

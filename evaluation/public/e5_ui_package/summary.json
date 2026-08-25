@@ -1,0 +1,72 @@
+{
+  "answer_indexability_rate": 0.43,
+  "authoritative_sources": {
+    "e2_doclaynet": {
+      "dataset": "doclaynet",
+      "module": "E2",
+      "run_id": "real_20260820",
+      "run_metadata": "data/evaluation/results/e2/real_20260820/doclaynet/run_metadata.json",
+      "split": "validation",
+      "summary": "data/evaluation/results/e2/real_20260820/doclaynet/summary.json"
+    },
+    "e2_funsd": {
+      "dataset": "funsd",
+      "module": "E2",
+      "run_id": "real_20260820",
+      "run_metadata": "data/evaluation/results/e2/real_20260820/funsd/run_metadata.json",
+      "split": "test",
+      "summary": "data/evaluation/results/e2/real_20260820/funsd/summary.json"
+    },
+    "e3": {
+      "dataset": "docvqa",
+      "module": "E3",
+      "run_id": "e3_baseline_v1_real_offline_20260820",
+      "run_metadata": "data/evaluation/results/e3/e3_baseline_v1_real_offline_20260820/run_metadata.json",
+      "split": "validation",
+      "summary": "data/evaluation/results/e3/e3_baseline_v1_real_offline_20260820/summary.json"
+    },
+    "e4": {
+      "dataset": "docvqa",
+      "module": "E4",
+      "run_id": "e4_real_offline_20260821_rerun",
+      "run_metadata": "data/evaluation/results/e4/e4_real_offline_20260821_rerun/run_metadata.json",
+      "split": "validation",
+      "summary": "data/evaluation/results/e4/e4_real_offline_20260821_rerun/summary.json"
+    },
+    "e4_1": {
+      "dataset": "docvqa",
+      "module": "E4.1",
+      "run_id": "e4_1_real_timeout_20260821_blocked",
+      "run_metadata": "data/evaluation/results/e4_1/e4_1_real_timeout_20260821_blocked/run_metadata.json",
+      "split": "validation",
+      "summary": "data/evaluation/results/e4_1/e4_1_real_timeout_20260821_blocked/summary.json"
+    }
+  },
+  "documents_indexed": 24,
+  "documents_prepared": 25,
+  "generated_files": [
+    "summary.json",
+    "scorecard.json",
+    "scorecard.csv",
+    "metric_provenance.jsonl",
+    "pipeline_stage_metrics.csv",
+    "retrieval_comparison.csv",
+    "limitations.json",
+    "portfolio_metrics.md",
+    "report.md",
+    "run_metadata.json"
+  ],
+  "measurement_status_counts": {
+    "BLOCKED": 3,
+    "MEASURED": 133,
+    "NOT_APPLICABLE": 9,
+    "NOT_MEASURED": 0
+  },
+  "no_global_accuracy": true,
+  "questions_attempted": 100,
+  "questions_scorable": 43,
+  "run_id": "final_baseline_20260821_final",
+  "schema_version": "e5.v1",
+  "source_manifest": "evaluation/e5/baseline_manifest.json",
+  "status": "completed"
+}

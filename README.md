@@ -247,6 +247,13 @@ The latest verified local suite is:
 299 passed, 28 skipped, 1 existing warning
 ```
 
+The CI-equivalent suite, with `TEST_DATABASE_URL` enabled against PostgreSQL,
+is verified at:
+
+```text
+324 passed, 3 skipped, 1 existing warning
+```
+
 The warning is the existing Starlette/httpx deprecation warning. Skips are
 intentional environment-gated PostgreSQL/Ollama integration checks, not test
 failures.

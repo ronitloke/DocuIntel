@@ -1,0 +1,83 @@
+{
+  "limitations": [
+    {
+      "id": "bounded_e2",
+      "source": "E2 summaries",
+      "status": "CONFIRMED",
+      "text": "E2 used five records per dataset for the real acceptance runs."
+    },
+    {
+      "id": "doclaynet_failure",
+      "source": "E2 DocLayNet summary",
+      "status": "CONFIRMED",
+      "text": "DocLayNet had 1 processing failure."
+    },
+    {
+      "id": "ocr_error",
+      "source": "E2 FUNSD summary",
+      "status": "CONFIRMED",
+      "text": "FUNSD OCR CER/WER were high under the documented deterministic metric."
+    },
+    {
+      "id": "layout_quality",
+      "source": "E2 DocLayNet summary",
+      "status": "CONFIRMED",
+      "text": "DocLayNet layout precision and F1 were low despite high mean IoU on matched regions."
+    },
+    {
+      "id": "answer_indexability",
+      "source": "E3 summary",
+      "status": "CONFIRMED",
+      "text": "57 of 100 DocVQA questions were not answer-indexable under the existing pipeline."
+    },
+    {
+      "id": "upload_limit",
+      "source": "E3 summary failures",
+      "status": "CONFIRMED",
+      "text": "The E3 run recorded 1 document-level failure(s), including the unchanged 25 MB upload-limit failure."
+    },
+    {
+      "id": "conditional_retrieval",
+      "source": "E3 summary",
+      "status": "CONFIRMED",
+      "text": "Retrieval metrics are conditional on the 43 answer-indexable/scorable questions."
+    },
+    {
+      "id": "reranking_latency",
+      "source": "E3 summary",
+      "status": "CONFIRMED",
+      "text": "Hybrid+reranker total latency was substantially higher than Hybrid total latency."
+    },
+    {
+      "id": "ollama_runtime",
+      "source": "E4 summary and E4.1 summary",
+      "status": "CONFIRMED",
+      "text": "E4 completion was extremely low in the CPU-mode local Ollama environment because generation timed out frequently."
+    },
+    {
+      "id": "answer_format",
+      "source": "E4 answers and E4.1 diagnostic design",
+      "status": "CONFIRMED",
+      "text": "E4 ANLS/EM results have a response-format mismatch concern because the production answer is evidence-first rather than a short answer."
+    },
+    {
+      "id": "citation_denominators",
+      "source": "E4 answers artifact",
+      "status": "CONFIRMED",
+      "text": "E4 citation rates have tiny denominators and must not be presented as generic citation accuracy."
+    },
+    {
+      "id": "e41_blocked",
+      "source": "E4.1 summary",
+      "status": "CONFIRMED",
+      "text": "E4.1 did not enter its measured question loop; extended diagnostic metrics are BLOCKED/NOT_MEASURED, not zero."
+    },
+    {
+      "id": "no_global_score",
+      "source": "E5 methodology",
+      "status": "METHODOLOGICAL_RULE",
+      "text": "No generic total-system accuracy is calculated because OCR, layout, retrieval, RAG completion, and answer metrics measure different tasks."
+    }
+  ],
+  "schema_version": "e5.limitations.v1"
+}

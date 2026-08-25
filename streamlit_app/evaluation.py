@@ -16,6 +16,7 @@ from streamlit_app.config import PROJECT_ROOT, get_settings
 DEFAULT_E5_RESULTS_DIRECTORY = (
     PROJECT_ROOT / "data" / "evaluation" / "results" / "e5" / "final_baseline_20260821_final"
 )
+PUBLIC_E5_RESULTS_DIRECTORY = PROJECT_ROOT / "evaluation" / "public" / "e5_ui_package"
 REQUIRED_FILES = (
     "summary.json",
     "scorecard.json",
@@ -104,9 +105,19 @@ def _load_e5_package_cached(directory: str) -> dict[str, Any]:
 
 
 def load_e5_package(directory: str | Path = DEFAULT_E5_RESULTS_DIRECTORY) -> dict[str, Any]:
-    """Load the fixed E5 run package; never choose a latest/other run implicitly."""
+    """Load the fixed E5 run package, with a safe public-checkout fallback.
 
-    return _load_e5_package_cached(str(Path(directory).expanduser().resolve()))
+    Local development uses the authoritative ignored result directory. A clean
+    public checkout has only the reviewed four-file package, so the fallback is
+    used only when the caller requested the default directory and that local
+    package is absent. Explicit custom directories still fail closed.
+    """
+
+    requested = Path(directory).expanduser().resolve()
+    default_directory = DEFAULT_E5_RESULTS_DIRECTORY.resolve()
+    if requested == default_directory and not requested.is_dir():
+        requested = PUBLIC_E5_RESULTS_DIRECTORY.resolve()
+    return _load_e5_package_cached(str(requested))
 
 
 def find_scorecard_metric(
@@ -352,6 +363,7 @@ def render_evaluation() -> None:
 __all__ = [
     "DEFAULT_E5_RESULTS_DIRECTORY",
     "E5UiArtifactError",
+    "PUBLIC_E5_RESULTS_DIRECTORY",
     "find_scorecard_metric",
     "format_e5_metric",
     "load_e5_package",
