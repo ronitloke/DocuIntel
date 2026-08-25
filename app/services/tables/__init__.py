@@ -1,0 +1,1 @@
+"""Deterministic structured-table services."""

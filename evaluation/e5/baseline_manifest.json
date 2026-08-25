@@ -1,0 +1,49 @@
+{
+  "schema_version": "e5.baseline.v1",
+  "description": "Explicit authoritative inputs for the final read-only E5 consolidation.",
+  "sources": {
+    "e2_funsd": {
+      "module": "E2",
+      "dataset": "funsd",
+      "split": "test",
+      "run_id": "real_20260820",
+      "summary": "data/evaluation/results/e2/real_20260820/funsd/summary.json",
+      "run_metadata": "data/evaluation/results/e2/real_20260820/funsd/run_metadata.json"
+    },
+    "e2_doclaynet": {
+      "module": "E2",
+      "dataset": "doclaynet",
+      "split": "validation",
+      "run_id": "real_20260820",
+      "summary": "data/evaluation/results/e2/real_20260820/doclaynet/summary.json",
+      "run_metadata": "data/evaluation/results/e2/real_20260820/doclaynet/run_metadata.json"
+    },
+    "e3": {
+      "module": "E3",
+      "dataset": "docvqa",
+      "split": "validation",
+      "run_id": "e3_baseline_v1_real_offline_20260820",
+      "summary": "data/evaluation/results/e3/e3_baseline_v1_real_offline_20260820/summary.json",
+      "run_metadata": "data/evaluation/results/e3/e3_baseline_v1_real_offline_20260820/run_metadata.json"
+    },
+    "e4": {
+      "module": "E4",
+      "dataset": "docvqa",
+      "split": "validation",
+      "run_id": "e4_real_offline_20260821_rerun",
+      "summary": "data/evaluation/results/e4/e4_real_offline_20260821_rerun/summary.json",
+      "run_metadata": "data/evaluation/results/e4/e4_real_offline_20260821_rerun/run_metadata.json",
+      "supplemental": {
+        "answers": "data/evaluation/results/e4/e4_real_offline_20260821_rerun/answers.jsonl"
+      }
+    },
+    "e4_1": {
+      "module": "E4.1",
+      "dataset": "docvqa",
+      "split": "validation",
+      "run_id": "e4_1_real_timeout_20260821_blocked",
+      "summary": "data/evaluation/results/e4_1/e4_1_real_timeout_20260821_blocked/summary.json",
+      "run_metadata": "data/evaluation/results/e4_1/e4_1_real_timeout_20260821_blocked/run_metadata.json"
+    }
+  }
+}

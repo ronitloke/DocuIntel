@@ -1,0 +1,24 @@
+services:
+  docuintel-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: docuintel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-docuintel}
+      POSTGRES_USER: ${POSTGRES_USER:-docuintel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - docuintel-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  docuintel-postgres-data:
+    name: docuintel-postgres-data

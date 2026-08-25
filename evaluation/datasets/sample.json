@@ -1,0 +1,30 @@
+{
+  "name": "docuintel_module9_sample",
+  "description": "Controlled Module 9 retrieval smoke benchmark for the generated policy fixture.",
+  "cases": [
+    {
+      "id": "employment_notice_001",
+      "question": "How much advance notice does a worker need to provide when leaving the company?",
+      "description": "Paraphrased semantic question with a filename-level relevance label.",
+      "expected_document": "module9-evaluation.pdf",
+      "expected_facts": ["thirty days", "written notice", "resignation"],
+      "tags": ["employment", "policy"]
+    },
+    {
+      "id": "expense_reimbursement_001",
+      "question": "travel expenses fourteen days",
+      "description": "Keyword-oriented reimbursement question.",
+      "expected_document": "module9-evaluation.pdf",
+      "expected_facts": ["travel expenses", "fourteen days"],
+      "tags": ["expenses", "keyword"]
+    },
+    {
+      "id": "data_retention_001",
+      "question": "How long are completed customer support records kept?",
+      "description": "Paraphrased data-retention question.",
+      "expected_document": "module9-evaluation.pdf",
+      "expected_facts": ["seven years"],
+      "tags": ["retention", "semantic"]
+    }
+  ]
+}

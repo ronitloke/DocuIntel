@@ -1,0 +1,60 @@
+{
+  "schema_version": "docuintel.public_benchmark.v1",
+  "source": "evaluation/e5/baseline_manifest.json",
+  "run_id": "final_baseline_20260821_final",
+  "scope": {
+    "dataset": "DocVQA",
+    "split": "validation",
+    "questions_attempted": 100,
+    "answer_indexable_questions": 43,
+    "documents_prepared": 25,
+    "documents_indexed": 24
+  },
+  "retrieval": [
+    {
+      "configuration": "keyword",
+      "recall_at_1": 0.11627906976744186,
+      "recall_at_5": 0.11627906976744186,
+      "recall_at_10": 0.11627906976744186,
+      "mrr": 0.11627906976744186,
+      "median_retrieval_ms": 10.771,
+      "median_total_ms": 10.785
+    },
+    {
+      "configuration": "semantic",
+      "recall_at_1": 0.4883720930232558,
+      "recall_at_5": 0.7209302325581395,
+      "recall_at_10": 0.8372093023255814,
+      "mrr": 0.601061277224068,
+      "median_retrieval_ms": 81.231,
+      "median_total_ms": 81.247
+    },
+    {
+      "configuration": "hybrid",
+      "recall_at_1": 0.5116279069767442,
+      "recall_at_5": 0.7209302325581395,
+      "recall_at_10": 0.8372093023255814,
+      "mrr": 0.6185031376891842,
+      "median_retrieval_ms": 86.474,
+      "median_total_ms": 86.496
+    },
+    {
+      "configuration": "hybrid_cross_encoder",
+      "recall_at_1": 0.627906976744186,
+      "recall_at_5": 0.7441860465116279,
+      "recall_at_10": 0.8372093023255814,
+      "mrr": 0.6984126984126984,
+      "median_retrieval_ms": 85.641,
+      "median_rerank_ms": 3558.542,
+      "mean_rerank_ms": 3567.340441860465,
+      "median_total_ms": 3644.85
+    }
+  ],
+  "interpretation": {
+    "metrics_are_conditional": true,
+    "condition": "Retrieval metrics use the 43 answer-indexable/scorable DocVQA validation questions.",
+    "generic_total_system_accuracy_reported": false,
+    "reranking_quality_change": "Hybrid Recall at 1 improved from 51.1628% to 62.7907%; MRR improved from 0.618503 to 0.698413.",
+    "reranking_latency_change_ms": 3558.354
+  }
+}

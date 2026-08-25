@@ -1,0 +1,3 @@
+# E1 public-dataset preparation only; the application runtime already provides
+# PyMuPDF and Pillow used for local PDF/image materialization.
+datasets>=3.0,<5.0
