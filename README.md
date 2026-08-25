@@ -62,6 +62,56 @@ database access, retrieval, reranking, OCR, and local LLM access remain behind
 FastAPI services. Ollama is an external local HTTP service; DocuIntel does not
 start `ollama.exe` or select CPU/GPU hardware.
 
+## Application Screenshots
+
+The Streamlit interface exposes DocuIntel's document intelligence, grounded
+RAG, structured analysis, privacy, and benchmark workflows through the FastAPI
+backend.
+
+### Home
+
+Platform overview showing document-intelligence capabilities, architecture,
+backend health, and persisted document state.
+
+![DocuIntel Home](docs/images/home.png)
+
+### Grounded Q&A
+
+Hybrid retrieval with CrossEncoder reranking generates a source-grounded
+answer with page-level evidence citations.
+
+![DocuIntel Grounded Q&A](docs/images/grounded-qa.png)
+
+### Structured Extraction
+
+Typed field extraction returns grounded values for the resignation notice
+period and invoice reference while explicitly marking unsupported employee
+information as not found.
+
+![DocuIntel Structured Extraction](docs/images/analyze.png)
+
+### Document Comparison
+
+Version-aware comparison identifies added, removed, and modified text and
+structured table changes between document revisions.
+
+![DocuIntel Document Comparison](docs/images/compare.png)
+
+### Privacy and PII Redaction
+
+Local PII detection identifies email, phone number, IBAN, and credit-card
+values and allows explicit selective redaction rather than automatic removal.
+
+![DocuIntel Privacy and PII Redaction](docs/images/privacy.png)
+
+### Benchmark Evaluation
+
+Read-only benchmark dashboard compares keyword, semantic, hybrid, and
+CrossEncoder-reranked retrieval while exposing measured ranking-quality and
+latency trade-offs.
+
+![DocuIntel Benchmark Evaluation](docs/images/evaluation.png)
+
 ## Technology stack
 
 - Python 3.12
@@ -145,7 +195,7 @@ scripts/                Local sample, evaluation, and verification commands
 tests/                  Unit, integration-gated, evaluation, and performance tests
 alembic/                Database migration environment and revisions
 data/sample_pdfs/       Reviewed synthetic PDF fixtures
-docs/images/            Reserved for future reviewed screenshots
+docs/images/            Reviewed application screenshots
 .github/workflows/      CI configuration
 ```
 
@@ -270,13 +320,6 @@ python -m compileall -q app streamlit_app evaluation scripts
 Pytest is configured with project-local `.pytest_tmp` and `.pytest_cache`
 directories so Windows runs do not depend on the user profile's temporary
 directory. Evaluation regression tests are included in the complete suite.
-
-## Screenshots and demo plan
-
-No screenshots are committed yet and no fake images are used. After reviewing
-the local app, place sanitized captures in
-[`docs/images/`](docs/images/README.md) using the suggested names for Home,
-Documents, Grounded Q&A, Analyze, Compare, Privacy, and Evaluation.
 
 ## License
 
