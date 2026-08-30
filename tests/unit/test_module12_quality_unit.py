@@ -127,27 +127,14 @@ def test_reporting_covers_comparison_console_and_baseline_attachment(tmp_path) -
     assert "semantic" in comparison.baseline_comparison
 
 
-def test_streamlit_status_adapter_handles_partial_backend_failure(monkeypatch) -> None:
-    """The HTTP-only UI reports health and readiness independently."""
+def test_streamlit_status_adapter_handles_partial_backend_failure() -> None:
+    """The internal health snapshot remains available without rendering status UI."""
 
     class FakeClient:
         def get(self, path: str):
             if path == "/health":
                 return {"status": "healthy", "version": "0.1.0"}
             raise RuntimeError("not ready")
-
-    class FakeSidebar:
-        def __init__(self) -> None:
-            self.messages: list[tuple[str, str]] = []
-
-        def success(self, message: str) -> None:
-            self.messages.append(("success", message))
-
-        def error(self, message: str) -> None:
-            self.messages.append(("error", message))
-
-        def warning(self, message: str) -> None:
-            self.messages.append(("warning", message))
 
     # The adapter intentionally catches ApiError, matching the UI boundary.
     from streamlit_app.api.client import ApiError
@@ -158,18 +145,11 @@ def test_streamlit_status_adapter_handles_partial_backend_failure(monkeypatch) -
                 return super().get(path)
             raise ApiError("Database is not ready.")
 
-    sidebar = FakeSidebar()
-    monkeypatch.setattr(status_component.st, "sidebar", sidebar)
     snapshot = status_component.get_backend_status(ApiErrorClient())
-    status_component.render_backend_status(snapshot)
 
     assert snapshot["health"]["status"] == "healthy"
     assert snapshot["ready_error"] == "Database is not ready."
-    assert ("success", "API online · 0.1.0") in sidebar.messages
-    assert any(
-        level == "warning" and "Database is not ready." in message
-        for level, message in sidebar.messages
-    )
+    assert status_component.render_backend_status(snapshot) is None
 
 
 @pytest.mark.parametrize(

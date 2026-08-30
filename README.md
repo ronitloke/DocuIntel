@@ -18,16 +18,17 @@ document accuracy or unrestricted production readiness.
 
 - Native PDF ingestion with PyMuPDF and selective Tesseract OCR
 - Heuristic layout and document-structure extraction
-- Structure-aware chunking and local sentence-transformer embeddings
+- Structure-aware chunking and `sentence-transformers/all-MiniLM-L6-v2` embeddings
 - PostgreSQL and pgvector persistence
 - Keyword, semantic, and hybrid search with Reciprocal Rank Fusion
-- Optional CrossEncoder reranking over a bounded candidate pool
+- Optional `cross-encoder/ms-marco-MiniLM-L6-v2` reranking over a bounded candidate pool
 - Grounded single-document and explicit multi-document Q&A
+- Persistent multi-turn conversations with stored message history
 - Source excerpts, page metadata, citation validation, and timing metadata
-- Grounded document summarization and constrained classification
+- Grounded document summarization and caller-constrained document classification
 - Evidence-grounded structured field extraction
 - Table inventory, preview, and deterministic natural-language table queries
-- Document and version comparison with change detection
+- Structured table comparison and document-version change detection
 - High-confidence email, phone, IBAN, and payment-card detection
 - Review-first selective PDF redaction with unchanged originals
 - Read-only E1–E5 evaluation tooling and a Streamlit evaluation dashboard
@@ -70,25 +71,32 @@ backend.
 
 ### Home
 
-Platform overview showing document-intelligence capabilities, architecture,
-backend health, and persisted document state.
+Platform overview showing document-intelligence capabilities, the processing
+pipeline, and persisted document state.
 
 ![DocuIntel Home](docs/images/home.png)
 
+### Documents
+
+Upload and manage documents, inspect processing state, and review persisted
+extraction and indexing details for a selected synthetic fixture.
+
+![DocuIntel Documents](docs/images/documents.png)
+
 ### Grounded Q&A
 
-Hybrid retrieval with CrossEncoder reranking generates a source-grounded
-answer with page-level evidence citations.
+Hybrid retrieval generates a source-grounded answer with page-level evidence
+citations and an expandable supporting excerpt.
 
 ![DocuIntel Grounded Q&A](docs/images/grounded-qa.png)
 
-### Structured Extraction
+### Analyze
 
 Typed field extraction returns grounded values for the resignation notice
 period and invoice reference while explicitly marking unsupported employee
 information as not found.
 
-![DocuIntel Structured Extraction](docs/images/analyze.png)
+![DocuIntel Analyze](docs/images/analyze.png)
 
 ### Document Comparison
 
@@ -97,7 +105,7 @@ structured table changes between document revisions.
 
 ![DocuIntel Document Comparison](docs/images/compare.png)
 
-### Privacy and PII Redaction
+### Privacy & Redaction
 
 Local PII detection identifies email, phone number, IBAN, and credit-card
 values and allows explicit selective redaction rather than automatic removal.
@@ -119,10 +127,11 @@ latency trade-offs.
 - Streamlit
 - PostgreSQL and pgvector
 - PyMuPDF and Tesseract OCR
-- Sentence Transformers and CrossEncoder
-- Ollama with `llama3.2:3b`
+- `sentence-transformers/all-MiniLM-L6-v2` embeddings (384 dimensions)
+- `cross-encoder/ms-marco-MiniLM-L6-v2` reranking
+- Ollama with the configurable `llama3.2:3b` local model
 - Docker Compose
-- Alembic
+- SQLAlchemy and Alembic
 - pytest and pytest-cov
 
 ## Measured retrieval benchmark
@@ -143,10 +152,10 @@ No generic DocuIntel accuracy percentage is calculated.
 | Hybrid | 51.16% | 72.09% | 83.72% | 0.618503 | 86.474 | 86.496 |
 | Hybrid + CrossEncoder | 62.79% | 74.42% | 83.72% | 0.698413 | 85.641 | 3644.850 |
 
-CrossEncoder reranking improved Hybrid Recall at 1 from approximately 51.2%
-to 62.8% and MRR from approximately 0.619 to 0.698. Recall at 10 reached
-approximately 83.7% on this bounded evaluation. The improvement added a
-measured 3558.354 ms to median total latency, primarily from reranking.
+CrossEncoder reranking improved Hybrid Recall at 1 from 51.16% to 62.79%
+(11.63 percentage points) and MRR from 0.618503 to 0.698413. Recall at 10
+reached 83.72% on this bounded evaluation. The improvement added a measured
+3558.354 ms to median total latency, primarily from reranking.
 
 These results demonstrate a quality-versus-latency trade-off, not a universal
 ranking guarantee. The evaluation sample is controlled and limited in size.
@@ -177,7 +186,9 @@ benchmark summary remain available for reproducibility.
 
 ## Known limitations
 
-- CPU-mode Ollama generation experienced frequent timeouts during bounded end-to-end RAG benchmarking.
+- The E4 bounded end-to-end RAG run experienced frequent timeouts with CPU-mode
+  Ollama; this is a local runtime reliability result, not a general accuracy
+  score.
 - Retrieval quality was substantially stronger than full local generation reliability.
 - One evaluation document exceeded the unchanged 25 MB upload limit.
 - Retrieval scores are conditional on answer-indexable questions, not all attempted questions.
@@ -294,7 +305,7 @@ publication artifact, not a replacement for the authoritative local package.
 The latest verified local suite is:
 
 ```text
-299 passed, 28 skipped, 1 existing warning
+319 passed, 28 skipped, 1 existing warning
 ```
 
 The CI-equivalent suite, with `TEST_DATABASE_URL` enabled against PostgreSQL,
@@ -333,4 +344,4 @@ licenses. Downloaded dataset payloads are not included in this repository.
 
 Modules 0–12.4, Evaluation E1–E5, and Module 13 are complete for this
 repository. Module 14 and later product capabilities are intentionally outside
-this publication-preparation task.
+this publication release.

@@ -81,6 +81,22 @@ def set_selected_document(
     state["selected_document_id"] = selected_document_id
 
 
+def set_comparison_pair(
+    state: MutableMapping[str, Any],
+    base_document_id: str | None,
+    target_document_id: str | None,
+) -> None:
+    """Clear a comparison response when its selected document pair changes."""
+
+    pair = (
+        str(base_document_id) if base_document_id is not None else None,
+        str(target_document_id) if target_document_id is not None else None,
+    )
+    if state.get("comparison_pair") != pair:
+        state["last_comparison"] = None
+    state["comparison_pair"] = pair
+
+
 def friendly_api_error_message(error: ApiError) -> str:
     """Map transport/API failures to concise, safe presentation-layer copy."""
 

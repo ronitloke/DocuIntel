@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 from functools import lru_cache
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -236,128 +237,426 @@ def _retrieval_table(package: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _metric_card(record: dict[str, Any] | None, label: str, *, percent: bool = False) -> None:
-    st.metric(label, format_e5_metric(record, percent=percent))
-    if record and record.get("denominator"):
-        st.caption(str(record["denominator"]))
+EVALUATION_ICON = (
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<path d="M5 19V9M12 19V5M19 19v-7"/><path d="M3 19h18"/>'
+    '<path d="m4 7 5-3 4 2 6-3"/></svg>'
+)
+
+
+def _metric_card(
+    record: dict[str, Any] | None,
+    label: str,
+    *,
+    percent: bool = False,
+    decimals: int = 3,
+) -> None:
+    """Render one status-aware metric without converting non-measured states."""
+
+    status = str(record.get("status", "NOT_MEASURED")) if record else "NOT_MEASURED"
+    with st.container(border=True):
+        st.metric(label, format_e5_metric(record, percent=percent, decimals=decimals))
+        if status != "MEASURED":
+            st.markdown(
+                f'<span class="di-eval-state di-eval-state--{status.casefold()}">{escape(status)}</span>',
+                unsafe_allow_html=True,
+            )
+        if record and record.get("denominator"):
+            st.caption(str(record["denominator"]))
+
+
+def _limitation(package: dict[str, Any], limitation_id: str) -> dict[str, Any] | None:
+    return next(
+        (item for item in package.get("limitations", []) if str(item.get("id")) == limitation_id),
+        None,
+    )
+
+
+def _eval_section_heading(kicker: str, title: str, copy: str) -> None:
+    st.markdown(
+        f'<div class="di-eval-section-heading"><div class="di-eval-section-kicker">{escape(kicker)}</div>'
+        f'<h2>{escape(title)}</h2><p>{escape(copy)}</p></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _render_retrieval_chart(rows: list[dict[str, Any]], metric: str, title: str, y_label: str) -> None:
+    values = {
+        str(row["label"]): row.get(metric)
+        for row in rows
+        if row.get(metric) is not None
+    }
+    with st.container(border=True):
+        st.markdown(f'<div class="di-eval-chart-title">{escape(title)}</div>', unsafe_allow_html=True)
+        st.bar_chart(values, y_label=y_label, height=220)
+
+
+def _render_rag_method(package: dict[str, Any], method: str, title: str) -> None:
+    with st.container(key=f"evaluation-rag-{method}", border=True):
+        st.markdown(f'<div class="di-eval-method-label">{escape(title)}</div>', unsafe_allow_html=True)
+        with st.container(
+            key=f"evaluation-rag-{method}-metrics",
+            horizontal=True,
+            gap="small",
+            vertical_alignment="top",
+        ):
+            _metric_card(
+                find_scorecard_metric(package, f"{method}.questions_answered", module="E4", dataset="docvqa"),
+                "Questions answered",
+                decimals=0,
+            )
+            _metric_card(
+                find_scorecard_metric(package, f"{method}.answer_coverage_rate", module="E4", dataset="docvqa"),
+                "Answer coverage",
+                percent=True,
+            )
+            _metric_card(
+                find_scorecard_metric(package, f"{method}.questions_failed", module="E4", dataset="docvqa"),
+                "Questions failed",
+                decimals=0,
+            )
+        with st.container(
+            key=f"evaluation-rag-{method}-quality",
+            horizontal=True,
+            gap="small",
+            vertical_alignment="top",
+        ):
+            _metric_card(
+                find_scorecard_metric(package, f"{method}.end_to_end.anls", module="E4", dataset="docvqa"),
+                "End-to-end ANLS",
+            )
+            _metric_card(
+                find_scorecard_metric(package, f"{method}.end_to_end.exact_match", module="E4", dataset="docvqa"),
+                "End-to-end exact match",
+            )
 
 
 def render_evaluation() -> None:
-    """Render E5 metrics without rerunning or mutating the evaluation."""
+    """Render the read-only E5 benchmark dashboard without running evaluation work."""
 
-    st.title("Evaluation")
-    st.caption("Read-only view of the authoritative E5 benchmark package.")
-    settings = get_settings()
-    try:
-        package = load_e5_package(settings.e5_results_directory)
-    except E5UiArtifactError as exc:
-        st.error(str(exc))
-        st.caption("Expected the configured final E5 evaluation package.")
-        return
+    with st.container(key="evaluation-page"):
+        with st.container(
+            key="evaluation-page-header",
+            horizontal=True,
+            gap="medium",
+            vertical_alignment="center",
+        ):
+            with st.container(key="evaluation-page-header-copy", width="stretch"):
+                st.markdown('<div class="di-eyebrow">MODEL &amp; SYSTEM EVALUATION</div>', unsafe_allow_html=True)
+                st.markdown('<h1 class="di-page-title">Evaluation</h1>', unsafe_allow_html=True)
+                st.markdown(
+                    '<p class="di-page-subtitle">Inspect reproducible document understanding, retrieval and '
+                    'grounded RAG benchmark results.</p>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown(f'<div class="di-evaluation-header-icon">{EVALUATION_ICON}</div>', unsafe_allow_html=True)
 
-    summary = package["summary"]
-    status_counts = summary.get("measurement_status_counts", {})
-    with st.container(border=True):
-        st.subheader("Evaluation overview")
-        st.caption(
-            "This page reads stored results only. It does not start benchmark jobs, call the database, "
-            "or contact Ollama."
-        )
-        columns = st.columns(4)
-        columns[0].metric("Documents prepared", summary.get("documents_prepared", "—"))
-        columns[1].metric("Documents indexed", summary.get("documents_indexed", "—"))
-        columns[2].metric("Scorable questions", summary.get("questions_scorable", "—"))
-        columns[3].metric("Measured records", status_counts.get("MEASURED", "—"))
-        st.caption(
-            "Measurement states: "
-            f"{status_counts.get('MEASURED', 0)} measured · "
-            f"{status_counts.get('BLOCKED', 0)} blocked · "
-            f"{status_counts.get('NOT_APPLICABLE', 0)} not applicable."
-        )
+        settings = get_settings()
+        try:
+            package = load_e5_package(settings.e5_results_directory)
+        except E5UiArtifactError as exc:
+            with st.container(key="evaluation-error-state", border=True):
+                st.error(str(exc))
+                st.caption("Expected the configured final E5 evaluation package.")
+            return
 
-    understanding_tab, retrieval_tab, rag_tab, limitations_tab = st.tabs(
-        ["Document understanding", "Retrieval", "RAG reliability", "Limitations & provenance"]
-    )
-    with understanding_tab:
-        st.subheader("OCR and layout")
-        st.caption("Percentages are displayed from the stored E2 scorecard; they are not a single global accuracy.")
-        funsd_cols = st.columns(2)
-        with funsd_cols[0].container(border=True):
-            st.markdown("**FUNSD OCR**")
-            _metric_card(find_scorecard_metric(package, "ocr.cer", module="E2", dataset="funsd"), "CER")
-        with funsd_cols[1].container(border=True):
-            st.markdown("**FUNSD OCR**")
-            _metric_card(find_scorecard_metric(package, "ocr.wer", module="E2", dataset="funsd"), "WER")
-        layout_metrics = (
-            ("layout.precision", "Precision"),
-            ("layout.recall", "Recall"),
-            ("layout.f1", "F1"),
-            ("layout.mean_matched_iou", "Mean matched IoU"),
-            ("layout.processing_success_rate", "Processing success"),
-        )
-        layout_columns = st.columns(len(layout_metrics))
-        for column, (metric, label) in zip(layout_columns, layout_metrics, strict=True):
-            with column:
-                _metric_card(find_scorecard_metric(package, metric, module="E2", dataset="doclaynet"), label, percent=True)
-
-    with retrieval_tab:
-        st.subheader("Retrieval quality and latency")
-        st.caption("The comparison uses the same controlled DocVQA evaluation cases and denominators for each configuration.")
-        st.dataframe(_retrieval_table(package), hide_index=True)
-        rows = retrieval_rows(package)
-        chart_columns = st.columns(3)
-        with chart_columns[0]:
-            st.markdown("**Recall@1**")
-            st.bar_chart({row["label"]: row["recall_at_1"] for row in rows}, y_label="Recall")
-        with chart_columns[1]:
-            st.markdown("**MRR**")
-            st.bar_chart({row["label"]: row["mrr"] for row in rows}, y_label="MRR")
-        with chart_columns[2]:
-            st.markdown("**Median total latency**")
-            st.bar_chart(
-                {row["label"]: row["total_pipeline_median_ms"] for row in rows},
-                y_label="Milliseconds",
+        summary = package["summary"]
+        status_counts = summary.get("measurement_status_counts", {})
+        with st.container(key="evaluation-overview-card", border=True):
+            _eval_section_heading(
+                "AUTHORITATIVE BENCHMARK SNAPSHOT",
+                "Evaluation overview",
+                "A bounded, reproducible package of stored measurements. This page is read-only and never starts benchmark work.",
+            )
+            with st.container(
+                key="evaluation-overview-grid",
+                horizontal=True,
+                gap="medium",
+                vertical_alignment="top",
+            ):
+                for label, value, accent in (
+                    ("Documents prepared", summary.get("documents_prepared", "—"), "indigo"),
+                    ("Documents indexed", summary.get("documents_indexed", "—"), "cyan"),
+                    ("Scorable questions", summary.get("questions_scorable", "—"), "violet"),
+                    ("Measured records", status_counts.get("MEASURED", "—"), "green"),
+                ):
+                    with st.container(border=True):
+                        st.markdown(
+                            f'<div class="di-eval-overview-value di-eval-overview-value--{accent}">'
+                            f'<span>{escape(str(label))}</span><strong>{escape(str(value))}</strong></div>',
+                            unsafe_allow_html=True,
+                        )
+            with st.container(
+                key="evaluation-status-grid",
+                horizontal=True,
+                gap="small",
+                vertical_alignment="top",
+            ):
+                for label, value, accent in (
+                    ("Measured", status_counts.get("MEASURED", 0), "green"),
+                    ("Blocked", status_counts.get("BLOCKED", 0), "amber"),
+                    ("Not applicable", status_counts.get("NOT_APPLICABLE", 0), "neutral"),
+                ):
+                    with st.container(border=True):
+                        st.markdown(
+                            f'<div class="di-eval-status-value di-eval-status-value--{accent}">'
+                            f'<span>{escape(str(label))}</span><strong>{escape(str(value))}</strong></div>',
+                            unsafe_allow_html=True,
+                        )
+            st.caption(
+                f"Bounded DocVQA configuration: {summary.get('questions_attempted', '—')} attempted questions, "
+                f"{summary.get('questions_scorable', '—')} scorable questions."
             )
 
-        hybrid = next((row for row in rows if row.get("method") == "hybrid"), None)
-        reranked = next((row for row in rows if row.get("method") == "hybrid_reranked"), None)
-        if hybrid and reranked:
-            with st.container(border=True):
-                st.subheader("Reranking impact")
-                impact_columns = st.columns(4)
-                impact_columns[0].metric("Recall@1 delta", f"{(reranked['recall_at_1'] - hybrid['recall_at_1']) * 100:.1f} pp")
-                impact_columns[1].metric("Recall@5 delta", f"{(reranked['recall_at_5'] - hybrid['recall_at_5']) * 100:.1f} pp")
-                impact_columns[2].metric("MRR delta", f"{reranked['mrr'] - hybrid['mrr']:.3f}")
-                impact_columns[3].metric(
-                    "Median rerank cost",
-                    f"{reranked['reranking_median_ms']:.0f} ms",
+        understanding_tab, retrieval_tab, rag_tab, limitations_tab = st.tabs(
+            ["Document understanding", "Retrieval", "RAG reliability", "Limitations & provenance"],
+            key="evaluation-tabs",
+        )
+        with understanding_tab:
+            _eval_section_heading(
+                "E2 · DOCUMENT UNDERSTANDING",
+                "Document understanding",
+                "OCR quality and layout matching remain separate measurements with their original denominators.",
+            )
+            with st.container(key="evaluation-ocr-card", border=True):
+                st.markdown('<div class="di-eval-subsection-title">FUNSD OCR</div>', unsafe_allow_html=True)
+                with st.container(
+                    key="evaluation-ocr-metrics",
+                    horizontal=True,
+                    gap="medium",
+                    vertical_alignment="top",
+                ):
+                    _metric_card(
+                        find_scorecard_metric(package, "ocr.cer", module="E2", dataset="funsd"),
+                        "CER",
+                    )
+                    _metric_card(
+                        find_scorecard_metric(package, "ocr.wer", module="E2", dataset="funsd"),
+                        "WER",
+                    )
+                st.caption("CER = Character Error Rate · WER = Word Error Rate · lower is better.")
+
+            with st.container(key="evaluation-layout-card", border=True):
+                st.markdown('<div class="di-eval-subsection-title">DOCLAYNET LAYOUT</div>', unsafe_allow_html=True)
+                with st.container(
+                    key="evaluation-layout-metrics",
+                    horizontal=True,
+                    gap="small",
+                    vertical_alignment="top",
+                ):
+                    for metric, label, percent in (
+                        ("layout.precision", "Precision", True),
+                        ("layout.recall", "Recall", True),
+                        ("layout.f1", "F1", True),
+                        ("layout.mean_matched_iou", "Mean matched IoU", False),
+                        ("layout.processing_success_rate", "Processing success", True),
+                    ):
+                        _metric_card(
+                            find_scorecard_metric(package, metric, module="E2", dataset="doclaynet"),
+                            label,
+                            percent=percent,
+                        )
+                st.markdown(
+                    '<div class="di-eval-interpretation"><strong>Interpretation</strong> Matched regions achieved '
+                    'strong overlap, while overall precision and F1 indicate that layout detection remains a known '
+                    'baseline limitation.</div>',
+                    unsafe_allow_html=True,
                 )
-                st.caption("Reranking improves measured retrieval quality in this bounded benchmark, with a substantial CPU latency cost.")
 
-    with rag_tab:
-        st.subheader("End-to-end answer reliability")
-        st.warning("CURRENT LOCAL CPU RUNTIME LIMITATION · E4 generation completed very few questions because CPU-mode Ollama timed out frequently.")
-        rag_columns = st.columns(2)
-        for column, method, title in (
-            (rag_columns[0], "hybrid", "Hybrid"),
-            (rag_columns[1], "hybrid_reranked", "Hybrid + reranker"),
-        ):
-            with column.container(border=True):
-                st.markdown(f"**{title}**")
-                answered = find_scorecard_metric(package, f"{method}.questions_answered", module="E4", dataset="docvqa")
-                coverage = find_scorecard_metric(package, f"{method}.answer_coverage_rate", module="E4", dataset="docvqa")
-                _metric_card(answered, "Questions answered")
-                _metric_card(coverage, "Answer coverage", percent=True)
-        st.caption("These are bounded E4 reliability measurements, not a general answer-accuracy score.")
+        with retrieval_tab:
+            rows = retrieval_rows(package)
+            _eval_section_heading(
+                "E3 · CONTROLLED DOCVQA RETRIEVAL",
+                "Retrieval quality",
+                "Four configurations use the same controlled cases and denominators; values come directly from the E5 package.",
+            )
+            with st.container(key="evaluation-retrieval-table-card", border=True):
+                st.dataframe(_retrieval_table(package), hide_index=True, width="stretch")
+            st.markdown('<div class="di-eval-subsection-title">Retrieval quality at a glance</div>', unsafe_allow_html=True)
+            with st.container(
+                key="evaluation-retrieval-quality-charts",
+                horizontal=True,
+                gap="medium",
+                vertical_alignment="top",
+            ):
+                _render_retrieval_chart(rows, "recall_at_1", "Recall@1", "Recall")
+                _render_retrieval_chart(rows, "mrr", "MRR", "Score")
 
-    with limitations_tab:
-        st.subheader("Known limitations")
-        for limitation in package["limitations"]:
-            with st.expander(limitation_display_title(limitation.get("id"))):
-                st.write(limitation.get("text") or "No limitation detail was recorded.")
-                st.caption(f"Source: {limitation.get('source', 'E5 artifact')}")
-        with st.expander("Artifact provenance"):
-            st.json(public_provenance(package))
+            _eval_section_heading(
+                "LATENCY TRADE-OFF",
+                "Retrieval latency",
+                "The reranker improves early-rank retrieval quality, while the stored CPU measurements show its added cost.",
+            )
+            with st.container(key="evaluation-retrieval-latency-card", border=True):
+                _render_retrieval_chart(rows, "total_pipeline_median_ms", "Median total latency", "Milliseconds")
+
+            hybrid = next((row for row in rows if row.get("method") == "hybrid"), None)
+            reranked = next((row for row in rows if row.get("method") == "hybrid_reranked"), None)
+            if hybrid and reranked:
+                with st.container(key="evaluation-reranking-impact-card", border=True):
+                    _eval_section_heading(
+                        "CROSSENCODER EFFECT",
+                        "Reranking impact",
+                        "CrossEncoder reranking improves top-ranked retrieval in this bounded benchmark, with a substantial CPU latency cost.",
+                    )
+                    with st.container(
+                        key="evaluation-reranking-impact-grid",
+                        horizontal=True,
+                        gap="small",
+                        vertical_alignment="top",
+                    ):
+                        for label, value, accent in (
+                            (
+                                "Recall@1 improvement",
+                                f"{(reranked['recall_at_1'] - hybrid['recall_at_1']) * 100:.1f} pp",
+                                "indigo",
+                            ),
+                            (
+                                "Recall@5 improvement",
+                                f"{(reranked['recall_at_5'] - hybrid['recall_at_5']) * 100:.1f} pp",
+                                "cyan",
+                            ),
+                            ("MRR improvement", f"{reranked['mrr'] - hybrid['mrr']:.3f}", "green"),
+                            ("Median rerank cost", f"{reranked['reranking_median_ms']:.0f} ms", "amber"),
+                        ):
+                            with st.container(border=True):
+                                st.markdown(
+                                    f'<div class="di-eval-impact-value di-eval-impact-value--{accent}">'
+                                    f'<span>{escape(label)}</span><strong>{escape(value)}</strong></div>',
+                                    unsafe_allow_html=True,
+                                )
+                    st.caption("Recall@10 is unchanged in the stored results; reranking is not presented as universally better.")
+
+        with rag_tab:
+            _eval_section_heading(
+                "E4 · GROUNDED ANSWER RELIABILITY",
+                "RAG reliability",
+                "Answer coverage, failures, citations and timing are shown separately so incomplete local generation is visible.",
+            )
+            runtime_limitation = _limitation(package, "ollama_runtime")
+            if runtime_limitation:
+                st.warning(str(runtime_limitation.get("text") or "Local LLM runtime limitation recorded."), icon=":material/schedule:")
+            with st.container(key="evaluation-rag-measured-card", border=True):
+                st.markdown('<div class="di-eval-subsection-title">MEASURED E4 RESULTS</div>', unsafe_allow_html=True)
+                with st.container(
+                    key="evaluation-rag-methods",
+                    horizontal=True,
+                    gap="medium",
+                    vertical_alignment="top",
+                ):
+                    _render_rag_method(package, "hybrid", "Hybrid")
+                    _render_rag_method(package, "hybrid_reranked", "Hybrid + reranker")
+                st.caption("These are bounded E4 reliability measurements, not a generic answer-accuracy score.")
+
+            with st.container(key="evaluation-rag-diagnostics-card", border=True):
+                _eval_section_heading(
+                    "FAILURE DIAGNOSTICS",
+                    "Runtime and response diagnostics",
+                    "Failure categories remain separate from measured zero-quality metrics.",
+                )
+                with st.container(
+                    key="evaluation-rag-failure-grid",
+                    horizontal=True,
+                    gap="small",
+                    vertical_alignment="top",
+                ):
+                    for method, title in (("hybrid", "Hybrid"), ("hybrid_reranked", "Hybrid + reranker")):
+                        for metric, label in (
+                            ("failure_ollama_timeout", f"{title} · Ollama timeouts"),
+                            ("failure_no_literal_answer_match", f"{title} · no literal answer match"),
+                        ):
+                            _metric_card(
+                                find_scorecard_metric(package, f"{method}.{metric}", module="E4", dataset="docvqa"),
+                                label,
+                                decimals=0,
+                            )
+
+            with st.container(key="evaluation-rag-citation-card", border=True):
+                _eval_section_heading(
+                    "CITATION EVIDENCE",
+                    "Citation measurements",
+                    "Citation rates use the answered-response denominators from the authoritative answers artifact.",
+                )
+                with st.container(
+                    key="evaluation-rag-citation-grid",
+                    horizontal=True,
+                    gap="medium",
+                    vertical_alignment="top",
+                ):
+                    for method, title in (("hybrid", "Hybrid"), ("hybrid_reranked", "Hybrid + reranker")):
+                        with st.container(border=True):
+                            st.markdown(f'<div class="di-eval-method-label">{escape(title)}</div>', unsafe_allow_html=True)
+                            _metric_card(
+                                find_scorecard_metric(package, f"{method}.citation_presence_rate", module="E4", dataset="docvqa"),
+                                "Citation presence",
+                                percent=True,
+                            )
+                            _metric_card(
+                                find_scorecard_metric(package, f"{method}.citation_reference_validity_rate", module="E4", dataset="docvqa"),
+                                "Reference validity",
+                                percent=True,
+                            )
+                citation_limitation = _limitation(package, "citation_denominators")
+                if citation_limitation:
+                    st.caption(str(citation_limitation.get("text") or "Citation denominator limitation recorded."))
+
+            with st.container(key="evaluation-rag-response-format-card", border=True):
+                response_limitation = _limitation(package, "answer_format")
+                _eval_section_heading(
+                    "RESPONSE FORMAT",
+                    "Answer-format concern",
+                    str(response_limitation.get("text") if response_limitation else "Response-format limitation recorded in the E5 package."),
+                )
+
+            with st.container(key="evaluation-e41-card", border=True):
+                _eval_section_heading(
+                    "E4.1 · EXTENDED DIAGNOSTIC",
+                    "Blocked diagnostic state",
+                    "The extended loop did not enter measured generation; blocked values are shown as BLOCKED, not zero.",
+                )
+                with st.container(
+                    key="evaluation-e41-metrics",
+                    horizontal=True,
+                    gap="small",
+                    vertical_alignment="top",
+                ):
+                    for metric, label in (
+                        ("extended_question_loop_completion_rate", "Question loop completion"),
+                        ("extended_answer_anls", "Extended answer ANLS"),
+                        ("extended_answer_exact_match", "Extended exact match"),
+                        ("direct_minimal_probe_wall_clock_ms", "Minimal direct probe (ms)"),
+                    ):
+                        _metric_card(
+                            find_scorecard_metric(package, metric, module="E4.1", dataset="docvqa"),
+                            label,
+                            percent=metric.endswith("completion_rate"),
+                            decimals=1 if metric.endswith("wall_clock_ms") else 3,
+                        )
+
+        with limitations_tab:
+            _eval_section_heading(
+                "METHODOLOGY & TRACEABILITY",
+                "Limitations and provenance",
+                "Human-readable limitations and safe repository-relative provenance from the authoritative E5 package.",
+            )
+            with st.container(key="evaluation-limitations-card", border=True):
+                for limitation in package["limitations"]:
+                    with st.expander(limitation_display_title(limitation.get("id"))):
+                        st.write(limitation.get("text") or "No limitation detail was recorded.")
+                        st.caption(f"Source: {limitation.get('source', 'E5 artifact')}")
+            with st.container(key="evaluation-provenance-card", border=True):
+                _eval_section_heading(
+                    "SAFE PROVENANCE",
+                    "Benchmark provenance",
+                    "The page exposes only the reviewed run, datasets, split and repository-relative manifest.",
+                )
+                provenance = public_provenance(package)
+                for label, value in provenance.items():
+                    st.markdown(
+                        f'<div class="di-eval-provenance-row"><span>{escape(label)}</span><strong>{escape(value)}</strong></div>',
+                        unsafe_allow_html=True,
+                    )
 
 
 __all__ = [

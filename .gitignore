@@ -80,3 +80,6 @@ ollama_models/
 # Streamlit project configuration is intentionally tracked.
 .streamlit/*
 !.streamlit/config.toml
+
+# Local-only visual design references.
+docs/ui-reference/
