@@ -16,7 +16,9 @@ if database_url:
     config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep application loggers active when migrations run inside an existing
+    # process, such as the database-backed pytest integration suite.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
