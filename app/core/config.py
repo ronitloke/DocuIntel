@@ -110,7 +110,7 @@ class Settings(BaseSettings):
         database = quote(self.postgres_db, safe="")
         host = self.postgres_host.strip()
         return (
-            f"postgresql+psyc://{username}:{password}@{host}:"
+            f"postgresql+psycopg://{username}:{password}@{host}:"
             f"{self.postgres_port}/{database}"
         )
 

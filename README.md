@@ -63,6 +63,23 @@ database access, retrieval, reranking, OCR, and local LLM access remain behind
 FastAPI services. Ollama is an external local HTTP service; DocuIntel does not
 start `ollama.exe` or select CPU/GPU hardware.
 
+## Reviewer quick start
+
+```powershell
+git clone https://github.com/ronitloke/DocuIntel.git
+cd DocuIntel
+Copy-Item .env.example .env
+ollama pull llama3.2:3b
+docker compose up --build -d
+python scripts/check_deployment.py
+python scripts/bootstrap_demo.py
+```
+
+Open <http://localhost:8501>. Host ports are configurable through `API_PORT`,
+`STREAMLIT_PORT`, and `POSTGRES_PORT` in `.env`; use matching URL overrides for
+the two scripts when those ports change. See [docs/DEMO.md](docs/DEMO.md) for
+the prepared reviewer walkthrough.
+
 ## Application Screenshots
 
 The Streamlit interface exposes DocuIntel's document intelligence, grounded
@@ -214,6 +231,115 @@ Downloaded datasets, uploaded PDFs, generated redacted PDFs, model caches,
 pytest runtime directories, local database state, and authoritative evaluation
 payloads remain local-only through `.gitignore`.
 
+## Docker Compose quick start
+
+This is the reproducible local deployment path for reviewers and fresh
+machines. It runs PostgreSQL/pgvector, the FastAPI API, and the Streamlit UI in
+Compose. Ollama remains a host service so Windows GPU/CPU selection stays an
+Ollama concern rather than an application concern.
+
+Prerequisites:
+
+- Docker Desktop with the Linux container engine running
+- Ollama installed on the host
+- The `llama3.2:3b` model available locally
+
+Prepare the safe local environment file and the host model:
+
+```powershell
+Copy-Item .env.example .env
+ollama pull llama3.2:3b
+```
+
+The example password is suitable only for a new local volume. If reusing an
+existing PostgreSQL volume, set `POSTGRES_PASSWORD` in `.env` to that volume's
+original password before starting Compose.
+
+For Docker Desktop, the Compose API container reaches host Ollama through
+`http://host.docker.internal:11434`. If Ollama is not already listening on a
+host-reachable interface, start it in a PowerShell window with:
+
+```powershell
+$env:OLLAMA_HOST="0.0.0.0:11434"
+ollama serve
+```
+
+Then start the complete stack with one command:
+
+```powershell
+docker compose up --build
+```
+
+Open the application at <http://localhost:8501>. The API is available at
+<http://localhost:8001>, with health and readiness at `/health` and `/ready`.
+The migration service waits for PostgreSQL's health check and runs
+`alembic upgrade head` before the API starts accepting traffic. The database
+schema therefore reaches `0004_module8_conversations` deterministically.
+
+### Deployment health and troubleshooting
+
+Check the complete dependency chain with:
+
+```powershell
+docker compose ps
+docker compose logs docuintel-postgres
+docker compose logs docuintel-migrate
+docker compose logs docuintel-api
+docker compose logs docuintel-frontend
+python scripts/check_deployment.py
+```
+
+Healthy startup shows PostgreSQL healthy, `docuintel-migrate` exited with code
+0, and both `docuintel-api` and `docuintel-frontend` healthy. The diagnostic
+command requires FastAPI health/readiness and Streamlit to pass. Ollama is
+optional for core startup, so an unavailable Ollama service is reported as a
+warning and causes only generation-dependent features to fail safely.
+
+If PostgreSQL is stopped, `/health` can remain a lightweight process-liveness
+check while `/ready` returns HTTP 503 with `database: unavailable`; restart
+PostgreSQL and the API readiness check recovers without deleting named volumes.
+If Ollama is stopped, document management and retrieval remain available, while
+RAG, summaries, classification, and other language-model operations return a
+controlled service-unavailable response. The API never starts Ollama itself.
+
+Stop the services without deleting persisted local state:
+
+```powershell
+docker compose down
+```
+
+PostgreSQL data, uploaded/generated runtime files, and the transformer cache
+use named Docker volumes. The first indexing or reranking request may download
+`sentence-transformers/all-MiniLM-L6-v2` and
+`cross-encoder/ms-marco-MiniLM-L6-v2`; subsequent starts reuse the model-cache
+volume. Models are deliberately not baked into the image or committed to Git.
+The backend image includes Linux Tesseract and resolves it from the container
+PATH. The Streamlit container communicates only with FastAPI and never accesses
+PostgreSQL directly.
+
+Troubleshooting:
+
+- Run `docker compose ps` and `docker compose logs docuintel-migrate docuintel-api docuintel-frontend` to inspect startup.
+- If the API waits, confirm the PostgreSQL health check is healthy and that `POSTGRES_PASSWORD` is set in `.env`.
+- If generation is unavailable, confirm `ollama serve`, `ollama list`, and the `OLLAMA_BASE_URL`/`OLLAMA_MODEL` values. A host firewall may need to allow Docker Desktop's private-network connection to port `11434`.
+- Change `API_PORT`, `STREAMLIT_PORT`, or `POSTGRES_PORT` in `.env` if a host port is already in use. The API's internal database port remains `5432`.
+- `docker compose down -v` intentionally removes the Compose named volumes and is only for a deliberate local reset.
+
+### Quick demo
+
+After the deployment is healthy, populate the reviewed synthetic corpus and
+open the Streamlit application:
+
+```powershell
+python scripts/check_deployment.py
+python scripts/bootstrap_demo.py
+```
+
+Open <http://localhost:8501>. The bootstrap uses the existing FastAPI upload
+and indexing contracts, is safe to run repeatedly, and never deletes existing
+documents or resets volumes. See [docs/DEMO.md](docs/DEMO.md) for the prepared
+Q&A, search, analysis, table, comparison, privacy, and OCR walkthroughs.
+
 ## Local setup on Windows
 
 The commands below assume PowerShell and Python 3.12.
@@ -240,10 +366,11 @@ password. Never commit `.env`:
 Copy-Item .env.example .env
 ```
 
-Start PostgreSQL with pgvector on the project host port `55432`:
+For a host-run FastAPI process, set `OLLAMA_BASE_URL=http://127.0.0.1:11434`
+in `.env`. Start PostgreSQL with pgvector on the project host port `55432`:
 
 ```powershell
-docker compose up -d
+docker compose up -d docuintel-postgres
 docker compose ps
 python -m alembic upgrade head
 ```

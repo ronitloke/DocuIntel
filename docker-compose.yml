@@ -1,3 +1,27 @@
+x-docuintel-image: &docuintel-image
+  image: docuintel:local
+
+x-docuintel-build: &docuintel-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+x-docuintel-api-environment: &docuintel-api-environment
+  APP_ENV: ${APP_ENV:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  DATABASE_URL: ""
+  POSTGRES_DB: ${POSTGRES_DB:-docuintel}
+  POSTGRES_USER: ${POSTGRES_USER:-docuintel}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+  POSTGRES_HOST: docuintel-postgres
+  POSTGRES_PORT: "5432"
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+  TESSERACT_CMD: ""
+  HF_HOME: /home/docuintel/.cache/huggingface
+  SENTENCE_TRANSFORMERS_HOME: /home/docuintel/.cache/sentence_transformers
+  TRANSFORMERS_CACHE: /home/docuintel/.cache/huggingface
+
 services:
   docuintel-postgres:
     image: pgvector/pgvector:pg16
@@ -19,6 +43,78 @@ services:
       retries: 12
       start_period: 10s
 
+  docuintel-migrate:
+    <<: *docuintel-image
+    container_name: docuintel-migrate
+    restart: "no"
+    environment:
+      <<: *docuintel-api-environment
+    depends_on:
+      docuintel-postgres:
+        condition: service_healthy
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+
+  docuintel-api:
+    <<: [*docuintel-image, *docuintel-build]
+    container_name: docuintel-api
+    restart: unless-stopped
+    environment:
+      <<: *docuintel-api-environment
+    ports:
+      - "${API_PORT:-8001}:8000"
+    volumes:
+      - docuintel-app-data:/app/data/processed
+      - docuintel-model-cache:/home/docuintel/.cache
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      docuintel-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  docuintel-frontend:
+    <<: *docuintel-image
+    container_name: docuintel-frontend
+    restart: unless-stopped
+    environment:
+      DOCUINTEL_API_BASE_URL: http://docuintel-api:8000
+      DOCUINTEL_API_TIMEOUT_SECONDS: ${DOCUINTEL_API_TIMEOUT_SECONDS:-180}
+      DOCUINTEL_E5_RESULTS_DIR: /app/evaluation/public/e5_ui_package
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+    ports:
+      - "${STREAMLIT_PORT:-8501}:8501"
+    depends_on:
+      docuintel-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    command:
+      [
+        "python",
+        "-m",
+        "streamlit",
+        "run",
+        "streamlit_app/app.py",
+        "--server.address=0.0.0.0",
+        "--server.port=8501",
+        "--server.headless=true"
+      ]
+
 volumes:
   docuintel-postgres-data:
     name: docuintel-postgres-data
+  docuintel-app-data:
+    name: docuintel-app-data
+  docuintel-model-cache:
+    name: docuintel-model-cache

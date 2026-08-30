@@ -100,6 +100,8 @@ def set_comparison_pair(
 def friendly_api_error_message(error: ApiError) -> str:
     """Map transport/API failures to concise, safe presentation-layer copy."""
 
+    if "ollama" in error.message.lower() or "language model" in error.message.lower():
+        return "The local language model is unavailable. Start Ollama and try again."
     if error.status_code == 404:
         return "The requested DocuIntel resource was not found. Refresh the page and try again."
     if error.status_code == 422:

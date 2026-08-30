@@ -47,9 +47,18 @@ def create_app(
     if app_database is None and storage_directory is None:
         try:
             app_database = create_database(app_settings)
-        except Exception:
-            logger.exception("Configured PostgreSQL resources could not be created")
+        except Exception as exc:
+            logger.error(
+                "PostgreSQL resource initialization failed dependency=postgresql "
+                "error_type=%s continue=true readiness=false",
+                type(exc).__name__,
+            )
             app_database = None
+    if app_database is None and storage_directory is None:
+        logger.warning(
+            "PostgreSQL is not configured dependency=postgresql "
+            "continue=true readiness=false"
+        )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
